@@ -1,8 +1,13 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/useAuthStore';
 
+// Gunakan VITE_API_URL jika ada, 
+// jika tidak ada dan sedang di production (Vercel) gunakan '/api/v1',
+// jika di local gunakan 'http://localhost:3001/api/v1'
+const baseURL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api/v1' : 'http://localhost:3001/api/v1');
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
