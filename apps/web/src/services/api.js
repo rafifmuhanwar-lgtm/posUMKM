@@ -1,12 +1,10 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/useAuthStore';
 
-// Paksakan menggunakan '/api/v1' jika di production (Vercel)
-// abaikan VITE_API_URL untuk menghindari salah konfigurasi di Vercel.
-// Di local, gunakan VITE_API_URL atau fallback ke localhost.
-const baseURL = import.meta.env.PROD 
-  ? '/api/v1' 
-  : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1');
+// Menggunakan VITE_API_URL agar bisa diatur manual lewat Environment Variables di Vercel
+// Pastikan di Vercel, VITE_API_URL diset menjadi: /api/v1
+// Di local (file .env), VITE_API_URL diset menjadi: http://localhost:3001/api/v1
+const baseURL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
   baseURL,
