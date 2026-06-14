@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Multi-tenant ──────────────────────────────────────────
+model Toko {
+  id              String   @id @default(cuid())
+  nama            String
+  alamat          String?
+  telepon         String?
+  logoUrl         String?
+  jenisToko       String   @default("custom") // pecel_ayam | mie_ayam | warkop | warteg | custom
+  warnaTema       String   @default("#1A5276")
+  warnaAksen      String   @default("#F39C12")
+  pajak           Float    @default(0)         // persentase, 0 = tidak ada pajak
+  footerStruk     String?
+  aktif           Boolean  @default(true)
+  saldoPoin       Int      @default(0)         // 1 TRX = 1 Poin = Rp 500
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  users           User[]
+  kategoris       Kategori[]
+  menus           Menu[]
+  transaksies     Transaksi[]
+  shifts          Shift[]
+  deposits        Deposit[]
+}
+
+model User {
+  id          String   @id @default(cuid())
+  tokoId      String
+  nama        String
+  email       String   @unique
+  password    String
+  pin         String?  // hash bcrypt 4-6 digit
+  peran       Peran    @default(KASIR)
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  toko        Toko        @relation(fields: [tokoId], references: [id])
+  transaksies Transaksi[]
+  shifts      Shift[]
+
+  @@index([tokoId])
+}
+
+enum Peran {
+  OWNER
+  KASIR_SENIOR
+  KASIR
+}
+
+model Kategori {
+  id       String  @id @default(cuid())
+  tokoId   String
+  nama     String
+  urutan   Int     @default(0)
+  aktif    Boolean @default(true)
+
+  toko     Toko   @relation(fields: [tokoId], references: [id])
+  menus    Menu[]
+
+  @@index([tokoId])
+}
+
+model Menu {
+  id          String  @id @default(cuid())
+  tokoId      String
+  kategoriId  String
+  nama        String
+  harga       Int     // dalam Rupiah, tanpa desimal
+  deskripsi   String?
+  fotoUrl     String?
+  tersedia    Boolean @default(true)
+  urutan      Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  toko            Toko           @relation(fields: [tokoId], references: [id])
+  kategori        Kategori       @relation(fields: [kategoriId], references: [id])
+  itemTransaksi   ItemTransaksi[]
+
+  @@index([tokoId])
+  @@index([kategoriId])
+}
+
+model Transaksi {
+  id              String          @id @default(cuid())
+  nomorStruk      String          // format: TRX-YYYYMMDD-XXXX
+  tokoId          String
+  userId          String
+  shiftId         String?
+  subtotal        Int
+  diskon          Int             @default(0)
+  pajak           Int             @default(0)
+  total           Int
+  metodeBayar     MetodeBayar
+  nominalBayar    Int
+  kembalian       Int             @default(0)
+  catatan         String?
+  poinDibayar     Boolean         @default(true)  // true jika ada saldo saat transaksi
+  status          StatusTransaksi @default(SELESAI)
+  createdAt       DateTime        @default(now())
+
+  toko            Toko            @relation(fields: [tokoId], references: [id])
+  user            User            @relation(fields: [userId], references: [id])
+  shift           Shift?          @relation(fields: [shiftId], references: [id])
+  items           ItemTransaksi[]
+
+  @@index([tokoId])
+  @@index([createdAt])
+}
+
+enum MetodeBayar {
+  TUNAI
+  QRIS
+  TRANSFER
+  HUTANG
+}
+
+enum StatusTransaksi {
+  SELESAI
+  VOID
+  HOLD
+}
+
+model ItemTransaksi {
+  id          String @id @default(cuid())
+  transaksiId String
+  menuId      String
+  namaMenu    String // snapshot saat transaksi
+  hargaSatuan Int
+  qty         Int
+  subtotal    Int
+  catatan     String?
+
+  transaksi   Transaksi @relation(fields: [transaksiId], references: [id])
+  menu        Menu      @relation(fields: [menuId], references: [id])
+
+  @@index([transaksiId])
+}
+
+model Shift {
+  id            String    @id @default(cuid())
+  tokoId        String
+  userId        String
+  modalAwal     Int       @default(0)
+  totalPenjualan Int      @default(0)
+  jumlahTrx     Int       @default(0)
+  kasAkhir      Int?
+  selisih       Int?
+  bukaAt        DateTime  @default(now())
+  tutupAt       DateTime?
+  catatan       String?
+
+  toko          Toko        @relation(fields: [tokoId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
+  transaksies   Transaksi[]
+
+  @@index([tokoId])
+}
+
+model Deposit {
+  id            String   @id @default(cuid())
+  tokoId        String
+  jumlahPoin    Int      // 1 poin = Rp 500
+  nominalRupiah Int      // jumlah uang yang disetor
+  status        String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  catatan       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  toko          Toko     @relation(fields: [tokoId], references: [id])
+
+  @@index([tokoId])
+}
